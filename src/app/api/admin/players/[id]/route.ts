@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
-import { countryNameToFlagEmoji } from "@/lib/countryFlags";
+import { canonicalCountryName, countryNameToFlagEmoji } from "@/lib/countryFlags";
 import { jsonError } from "@/lib/http";
 import { isGoalkeeperPosition, PLAYER_POSITIONS } from "@/lib/playerMaster";
 import { ensurePlayerCatalogColumns, prisma } from "@/lib/prisma";
@@ -22,10 +22,11 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const player = await prisma.player.findUnique({ where: { id: params.id }, select: { id: true, tournamentId: true, source: true } });
     if (!player) throw Object.assign(new Error("Player not found"), { status: 404 });
     if (player.source !== "MANUAL") throw Object.assign(new Error("Only manual player master rows can be edited here"), { status: 400 });
+    const nationalTeam = canonicalCountryName(input.nationalTeam);
     const team = await prisma.team.upsert({
-      where: { tournamentId_name: { tournamentId: player.tournamentId, name: input.nationalTeam } },
-      create: { tournamentId: player.tournamentId, name: input.nationalTeam, flagEmoji: countryNameToFlagEmoji(input.nationalTeam), groupName: input.groupName },
-      update: { flagEmoji: countryNameToFlagEmoji(input.nationalTeam) ?? undefined, groupName: input.groupName }
+      where: { tournamentId_name: { tournamentId: player.tournamentId, name: nationalTeam } },
+      create: { tournamentId: player.tournamentId, name: nationalTeam, flagEmoji: countryNameToFlagEmoji(nationalTeam), groupName: input.groupName },
+      update: { flagEmoji: countryNameToFlagEmoji(nationalTeam) ?? undefined, groupName: input.groupName }
     });
     const updated = await prisma.player.update({
       where: { id: player.id },

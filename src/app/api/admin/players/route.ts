@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
-import { countryNameToFlagEmoji } from "@/lib/countryFlags";
+import { canonicalCountryName, countryNameToFlagEmoji } from "@/lib/countryFlags";
 import { jsonError } from "@/lib/http";
 import { isGoalkeeperPosition, PLAYER_CATALOG_SOURCES, PLAYER_POSITIONS } from "@/lib/playerMaster";
 import { ensurePlayerCatalogColumns, prisma } from "@/lib/prisma";
@@ -59,10 +59,11 @@ export async function POST(request: Request) {
 
     let imported = 0;
     for (const row of input.players) {
+      const nationalTeam = canonicalCountryName(row.nationalTeam);
       const team = await prisma.team.upsert({
-        where: { tournamentId_name: { tournamentId: tournament.id, name: row.nationalTeam } },
-        create: { tournamentId: tournament.id, name: row.nationalTeam, flagEmoji: countryNameToFlagEmoji(row.nationalTeam), groupName: row.groupName },
-        update: { flagEmoji: countryNameToFlagEmoji(row.nationalTeam) ?? undefined, groupName: row.groupName }
+        where: { tournamentId_name: { tournamentId: tournament.id, name: nationalTeam } },
+        create: { tournamentId: tournament.id, name: nationalTeam, flagEmoji: countryNameToFlagEmoji(nationalTeam), groupName: row.groupName },
+        update: { flagEmoji: countryNameToFlagEmoji(nationalTeam) ?? undefined, groupName: row.groupName }
       });
       const existing = await prisma.player.findFirst({ where: { tournamentId: tournament.id, teamId: team.id, name: row.name, source: "MANUAL" }, select: { id: true } });
       const data = { sequenceNumber: row.sequenceNumber, name: row.name, teamId: team.id, position: row.position, isGoalkeeper: isGoalkeeperPosition(row.position), source: "MANUAL" };

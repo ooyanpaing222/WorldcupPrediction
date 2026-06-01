@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { countryCodeFromName, countryNameToFlagImageUrl } from "../src/lib/countryFlags";
+import { canonicalCountryName, countryCodeFromName, countryNameToFlagImageUrl } from "../src/lib/countryFlags";
 
 test("maps country names to remote SVG flag URLs", () => {
   assert.equal(countryCodeFromName("United States"), "US");
@@ -17,4 +17,10 @@ test("maps WC26 group names with aliases and diacritics to flag URLs", () => {
   assert.equal(countryCodeFromName("DR Congo"), "CD");
   assert.equal(countryCodeFromName("Türkiye"), "TR");
   assert.equal(countryNameToFlagImageUrl("Curaçao"), "https://flagcdn.io/flags/4x3/cw.svg");
+});
+
+test("canonicalizes duplicate World Cup national team aliases", () => {
+  assert.equal(canonicalCountryName("Côte d'Ivoire"), "Ivory Coast");
+  assert.equal(canonicalCountryName("Cape Verde Islands"), "Cabo Verde");
+  assert.equal(canonicalCountryName("IR Iran"), "Iran");
 });

@@ -1,7 +1,7 @@
 import { MatchStatus } from "@prisma/client";
 import { config } from "../lib/config";
 import { formatErrorWithCause } from "../lib/errorFormatting";
-import { countryNameToFlagEmoji } from "../lib/countryFlags";
+import { canonicalCountryName, countryNameToFlagEmoji } from "../lib/countryFlags";
 import { normalizeMatchGroupName } from "../lib/matchIdentity";
 
 export type ExternalTeam = {
@@ -100,11 +100,12 @@ function unwrapArray(payload: any, keys: string[]) {
 function compactCatalog(catalog: ExternalCatalog): ExternalCatalog {
   const teamsByName = new Map<string, ExternalTeam>();
   for (const team of catalog.teams) {
-    const key = team.name.trim().toLowerCase();
+    const canonicalName = canonicalCountryName(team.name);
+    const key = canonicalName.toLowerCase();
     const current = teamsByName.get(key);
     teamsByName.set(key, {
       externalId: current?.externalId ?? team.externalId,
-      name: current?.name ?? team.name,
+      name: current?.name ?? canonicalName,
       shortName: current?.shortName ?? team.shortName,
       flagEmoji: current?.flagEmoji ?? team.flagEmoji,
       groupName: current?.groupName ?? team.groupName
@@ -252,12 +253,13 @@ export async function fetchFootballDataCompetitions(): Promise<ExternalCompetiti
 function parseTeam(raw: any): ExternalTeam | null {
   const name = raw?.name ?? raw?.team_name ?? raw?.teamName ?? raw?.country ?? raw?.country_name ?? raw?.team?.name;
   if (!name || /\bTBD\b/i.test(String(name))) return null;
+  const canonicalName = canonicalCountryName(String(name));
   const externalId = raw?.id ?? raw?._id ?? raw?.team_id ?? raw?.teamId ?? raw?.external_id ?? raw?.code ?? raw?.fifa_code ?? raw?.team?.id;
   return {
     externalId: externalId !== undefined && externalId !== null ? String(externalId) : undefined,
-    name: String(name),
+    name: canonicalName,
     shortName: raw?.shortName ?? raw?.short_name ?? raw?.tla ?? raw?.code ?? raw?.fifa_code ?? null,
-    flagEmoji: raw?.flagEmoji ?? raw?.flag_emoji ?? raw?.flag ?? countryNameToFlagEmoji(String(name)),
+    flagEmoji: raw?.flagEmoji ?? raw?.flag_emoji ?? raw?.flag ?? countryNameToFlagEmoji(canonicalName),
     groupName: normalizeGroupName(raw?.groupName ?? raw?.group_name ?? raw?.group ?? null)
   };
 }
@@ -281,7 +283,7 @@ function parsePlayer(raw: any, team?: ExternalTeam | null): ExternalPlayer | nul
     position,
     isGoalkeeper: Boolean(raw?.isGoalkeeper ?? raw?.is_goalkeeper) || normalizedPosition.includes("KEEPER") || normalizedPosition === "GK" || normalizedPosition === "G",
     teamExternalId: teamExternalId !== undefined && teamExternalId !== null ? String(teamExternalId) : null,
-    teamName: teamName ? String(teamName) : null
+    teamName: teamName ? canonicalCountryName(String(teamName)) : null
   };
 }
 

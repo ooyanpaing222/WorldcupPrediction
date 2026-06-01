@@ -31,7 +31,9 @@ const COUNTRY_CODE_BY_NAME: Record<string, string> = {
   cambodia: "KH",
   cameroon: "CM",
   canada: "CA",
+  "cabo verde": "CV",
   "cape verde": "CV",
+  "cape verde islands": "CV",
   "central african republic": "CF",
   chad: "TD",
   chile: "CL",
@@ -76,7 +78,10 @@ const COUNTRY_CODE_BY_NAME: Record<string, string> = {
   iceland: "IS",
   india: "IN",
   indonesia: "ID",
+  "cote d'ivoire": "CI",
+  "côte d'ivoire": "CI",
   "ivory coast": "CI",
+  "ir iran": "IR",
   iran: "IR",
   iraq: "IQ",
   ireland: "IE",
@@ -171,6 +176,12 @@ const COUNTRY_CODE_BY_NAME: Record<string, string> = {
   zimbabwe: "ZW"
 };
 
+const CANONICAL_COUNTRY_NAME_BY_CODE: Record<string, string> = {
+  CI: "Ivory Coast",
+  CV: "Cabo Verde",
+  IR: "Iran"
+};
+
 const SUBDIVISION_FLAGS: Record<string, string> = {
   "GB-ENG": "🏴\u{e0067}\u{e0062}\u{e0065}\u{e006e}\u{e0067}\u{e007f}",
   "GB-NIR": "🇬🇧",
@@ -199,6 +210,11 @@ function normalizeCountryName(countryName: string) {
 export function countryCodeFromName(countryName?: string | null) {
   if (!countryName || /\b(TBD|TBA)\b/i.test(countryName)) return null;
   return COUNTRY_CODE_BY_NAME[normalizeCountryName(countryName)] ?? null;
+}
+
+export function canonicalCountryName(countryName: string) {
+  const countryCode = countryCodeFromName(countryName);
+  return countryCode ? CANONICAL_COUNTRY_NAME_BY_CODE[countryCode] ?? countryName.trim() : countryName.trim();
 }
 
 export function flagEmojiFromCountryCode(countryCode?: string | null) {

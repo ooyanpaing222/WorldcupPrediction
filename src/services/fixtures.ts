@@ -1,5 +1,6 @@
 import { MatchStatus, StageType, type Tournament } from "@prisma/client";
 import { ensureTournamentSyncColumn, prisma } from "../lib/prisma";
+import { canonicalCountryName } from "../lib/countryFlags";
 import { config } from "../lib/config";
 import { fetchFootballDataCompetitionFixtures, fetchWorldCupFixtures, type ExternalFixture } from "./footballApi";
 import { enqueueScoringJob } from "../jobs/scoringEngine.job";
@@ -20,16 +21,17 @@ function footballDataCode(externalId?: string | null) {
 }
 
 async function upsertTeam(tournamentId: string | null | undefined, name: string, externalId?: string | null) {
-  if (!tournamentId || !name || /\bTBD\b/i.test(name)) return null;
+  const canonicalName = canonicalCountryName(name);
+  if (!tournamentId || !canonicalName || /\bTBD\b/i.test(canonicalName)) return null;
 
   const existing = externalId
     ? await prisma.team.findUnique({ where: { tournamentId_externalId: { tournamentId, externalId } }, select: { id: true } })
-    : await prisma.team.findUnique({ where: { tournamentId_name: { tournamentId, name } }, select: { id: true } });
+    : await prisma.team.findUnique({ where: { tournamentId_name: { tournamentId, name: canonicalName } }, select: { id: true } });
   if (existing) return existing.id;
 
   const team = await prisma.team.upsert({
-    where: { tournamentId_name: { tournamentId, name } },
-    create: { tournamentId, externalId: externalId ?? null, name },
+    where: { tournamentId_name: { tournamentId, name: canonicalName } },
+    create: { tournamentId, externalId: externalId ?? null, name: canonicalName },
     update: { externalId: externalId ?? undefined }
   });
   return team.id;
@@ -44,8 +46,8 @@ async function upsertFixture(fixture: ExternalFixture, tournamentId?: string | n
     matchday: fixture.matchday,
     stage: mapStage(fixture.stage),
     groupName: fixture.groupName,
-    homeTeam: fixture.homeTeam,
-    awayTeam: fixture.awayTeam,
+    homeTeam: canonicalCountryName(fixture.homeTeam),
+    awayTeam: canonicalCountryName(fixture.awayTeam),
     homeTeamId,
     awayTeamId,
     venue: fixture.venue,

@@ -1,5 +1,5 @@
 import { config } from "@/lib/config";
-import { countryNameToFlagEmoji } from "@/lib/countryFlags";
+import { canonicalCountryName, countryCodeFromName, countryNameToFlagEmoji } from "@/lib/countryFlags";
 import { isGoalkeeperPosition, normalizePlayerCatalogSource } from "@/lib/playerMaster";
 import { ensurePlayerCatalogColumns, ensurePlayerSequenceNumberColumn, prisma } from "@/lib/prisma";
 import { fetchWorldCupCatalog, type ExternalCatalog } from "@/services/footballApi";
@@ -30,20 +30,22 @@ async function upsertCatalog(catalog: ExternalCatalog) {
   const teamIdByName = new Map<string, string>();
 
   for (const team of catalog.teams) {
+    const canonicalName = canonicalCountryName(team.name);
     const existingTeam = await prisma.team.findFirst({
       where: {
         tournamentId: tournament.id,
         OR: [
           ...(team.externalId ? [{ externalId: team.externalId }] : []),
+          { name: canonicalName },
           { name: team.name }
         ]
       }
     });
     const teamData = {
       externalId: existingTeam?.externalId ?? team.externalId,
-      name: team.name,
+      name: canonicalName,
       shortName: team.shortName,
-      flagEmoji: team.flagEmoji ?? countryNameToFlagEmoji(team.name),
+      flagEmoji: team.flagEmoji ?? countryNameToFlagEmoji(canonicalName),
       groupName: team.groupName
     };
     const savedTeam = existingTeam
@@ -52,6 +54,7 @@ async function upsertCatalog(catalog: ExternalCatalog) {
 
     if (team.externalId) teamIdByExternalId.set(team.externalId, savedTeam.id);
     if (savedTeam.externalId) teamIdByExternalId.set(savedTeam.externalId, savedTeam.id);
+    teamIdByName.set(canonicalName.toLowerCase(), savedTeam.id);
     teamIdByName.set(team.name.toLowerCase(), savedTeam.id);
   }
 
@@ -59,7 +62,7 @@ async function upsertCatalog(catalog: ExternalCatalog) {
     const teamId = player.teamExternalId
       ? teamIdByExternalId.get(player.teamExternalId)
       : player.teamName
-        ? teamIdByName.get(player.teamName.toLowerCase())
+        ? teamIdByName.get(canonicalCountryName(player.teamName).toLowerCase()) ?? teamIdByName.get(player.teamName.toLowerCase())
         : undefined;
     const data = {
       teamId,
@@ -102,13 +105,13 @@ async function upsertTeamsFromFixtures() {
   for (const fixture of fixtures) {
     const [homeTeam, awayTeam] = await Promise.all([
       prisma.team.upsert({
-        where: { tournamentId_name: { tournamentId: tournament.id, name: fixture.homeTeam } },
-        create: { tournamentId: tournament.id, name: fixture.homeTeam, flagEmoji: countryNameToFlagEmoji(fixture.homeTeam), groupName: fixture.groupName },
+        where: { tournamentId_name: { tournamentId: tournament.id, name: canonicalCountryName(fixture.homeTeam) } },
+        create: { tournamentId: tournament.id, name: canonicalCountryName(fixture.homeTeam), flagEmoji: countryNameToFlagEmoji(fixture.homeTeam), groupName: fixture.groupName },
         update: { flagEmoji: countryNameToFlagEmoji(fixture.homeTeam) ?? undefined, groupName: fixture.groupName ?? undefined }
       }),
       prisma.team.upsert({
-        where: { tournamentId_name: { tournamentId: tournament.id, name: fixture.awayTeam } },
-        create: { tournamentId: tournament.id, name: fixture.awayTeam, flagEmoji: countryNameToFlagEmoji(fixture.awayTeam), groupName: fixture.groupName },
+        where: { tournamentId_name: { tournamentId: tournament.id, name: canonicalCountryName(fixture.awayTeam) } },
+        create: { tournamentId: tournament.id, name: canonicalCountryName(fixture.awayTeam), flagEmoji: countryNameToFlagEmoji(fixture.awayTeam), groupName: fixture.groupName },
         update: { flagEmoji: countryNameToFlagEmoji(fixture.awayTeam) ?? undefined, groupName: fixture.groupName ?? undefined }
       })
     ]);
@@ -142,5 +145,13 @@ export async function getOutrightOptions() {
     prisma.player.findMany({ where: { ...playerWhere, isGoalkeeper: false }, include: { team: true }, orderBy: [{ team: { name: "asc" } }, { sequenceNumber: "asc" }, { name: "asc" }] })
   ]);
 
-  return { tournament, teams, players, goalkeepers, goldenBootPlayers, playerSource };
+  const seenTeamCodes = new Set<string>();
+  const uniqueTeams = teams.filter((team) => {
+    const key = countryCodeFromName(team.name) ?? team.name.trim().toLowerCase();
+    if (seenTeamCodes.has(key)) return false;
+    seenTeamCodes.add(key);
+    return true;
+  });
+
+  return { tournament, teams: uniqueTeams, players, goalkeepers, goldenBootPlayers, playerSource };
 }

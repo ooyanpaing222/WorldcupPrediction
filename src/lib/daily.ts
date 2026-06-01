@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { teamFlagEmoji, teamFlagImageUrl } from "@/lib/countryFlags";
 import { prisma } from "@/lib/prisma";
+import { mmtDateKey, mmtDayUtcRange } from "@/lib/timezone";
 
 export type DailyMatchScore = {
   id: number;
@@ -52,11 +53,6 @@ export type DailyWinnerSummary = {
   shareText: string;
 };
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-function dateKey(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
 
 function parseDateKey(value: string | undefined) {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
@@ -64,10 +60,6 @@ function parseDateKey(value: string | undefined) {
   return Number.isNaN(date.getTime()) ? null : value;
 }
 
-function dayRange(key: string) {
-  const start = new Date(`${key}T00:00:00.000Z`);
-  return { start, end: new Date(start.getTime() + MS_PER_DAY) };
-}
 
 function percentage(numerator: number, denominator: number) {
   if (!denominator) return 0;
@@ -85,13 +77,13 @@ export async function getDailyWinnerSummary(requestedDate?: string): Promise<Dai
 
   if (!allMatchDates.length) return null;
 
-  const availableDates = Array.from(new Set(allMatchDates.map((match) => dateKey(match.kickoffTime))));
+  const availableDates = Array.from(new Set(allMatchDates.map((match) => mmtDateKey(match.kickoffTime))));
   const latestFinishedDate = [...allMatchDates].reverse().find((match) => match.status === "FINISHED")?.kickoffTime;
-  const todayKey = dateKey(new Date());
-  const fallbackDate = availableDates.includes(todayKey) ? todayKey : dateKey(latestFinishedDate ?? allMatchDates[0].kickoffTime);
+  const todayKey = mmtDateKey(new Date());
+  const fallbackDate = availableDates.includes(todayKey) ? todayKey : mmtDateKey(latestFinishedDate ?? allMatchDates[0].kickoffTime);
   const parsedDate = parseDateKey(requestedDate);
   const selectedDate = parsedDate && availableDates.includes(parsedDate) ? parsedDate : fallbackDate;
-  const { start, end } = dayRange(selectedDate);
+  const { start, end } = mmtDayUtcRange(selectedDate);
 
   const matches = await prisma.match.findMany({
     where: { kickoffTime: { gte: start, lt: end } },

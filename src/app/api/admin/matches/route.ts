@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { jsonError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
+import { mmtDayUtcRange } from "@/lib/timezone";
 
 const querySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
@@ -15,13 +16,12 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const query = querySchema.parse({ date: searchParams.get("date") ?? undefined });
 
-    const date = query.date ? new Date(`${query.date}T00:00:00.000Z`) : null;
-    const nextDate = date ? new Date(date.getTime() + 24 * 60 * 60 * 1000) : null;
+    const dayRange = query.date ? mmtDayUtcRange(query.date) : null;
 
     const matches = await prisma.match.findMany({
       where: {
         status: MatchStatus.FINISHED,
-        ...(date && nextDate ? { kickoffTime: { gte: date, lt: nextDate } } : {})
+        ...(dayRange ? { kickoffTime: { gte: dayRange.start, lt: dayRange.end } } : {})
       },
       orderBy: { kickoffTime: "desc" },
       take: 250,
