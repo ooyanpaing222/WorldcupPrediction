@@ -6,15 +6,26 @@ test("awards three points for an exact score prediction", () => {
   assert.deepEqual(calculateMatchPoints({ score: { home: 2, away: 1 } }, { home: 2, away: 1 }), { points: 3, exact: true, correctOutcome: false });
 });
 
-test("awards one point for the correct win/draw/win outcome prediction", () => {
-  assert.deepEqual(calculateMatchPoints({ outcome: "HOME" }, { home: 1, away: 0 }), { points: 1, exact: false, correctOutcome: true });
-  assert.deepEqual(calculateMatchPoints({ outcome: "AWAY" }, { home: 1, away: 4 }), { points: 1, exact: false, correctOutcome: true });
-  assert.deepEqual(calculateMatchPoints({ outcome: "DRAW" }, { home: 2, away: 2 }), { points: 1, exact: false, correctOutcome: true });
+test("awards two points for the correct winner prediction", () => {
+  assert.deepEqual(calculateMatchPoints({ outcome: "HOME" }, { home: 1, away: 0 }), { points: 2, exact: false, correctOutcome: true });
+  assert.deepEqual(calculateMatchPoints({ outcome: "AWAY" }, { home: 1, away: 4 }), { points: 2, exact: false, correctOutcome: true });
+  assert.deepEqual(calculateMatchPoints({ outcome: "DRAW" }, { home: 2, away: 2 }), { points: 2, exact: false, correctOutcome: true });
 });
 
-test("awards outcome and exact score points independently", () => {
-  assert.deepEqual(calculateMatchPoints({ outcome: "HOME", score: { home: 2, away: 1 } }, { home: 2, away: 1 }), { points: 4, exact: true, correctOutcome: true });
+test("awards exact score instead of double-counting winner points", () => {
+  assert.deepEqual(calculateMatchPoints({ outcome: "HOME", score: { home: 2, away: 1 } }, { home: 2, away: 1 }), { points: 3, exact: true, correctOutcome: true });
   assert.deepEqual(calculateMatchPoints({ outcome: "AWAY", score: { home: 2, away: 1 } }, { home: 2, away: 1 }), { points: 3, exact: true, correctOutcome: false });
+});
+
+test("uses 90-minute full-time score for exact score and final winner score for knockout results", () => {
+  assert.deepEqual(
+    calculateMatchPoints({ outcome: "HOME", score: { home: 1, away: 1 } }, { home: 1, away: 1 }, { stage: "ROUND_OF_16", winnerScore: { home: 2, away: 1 } }),
+    { points: 3, exact: true, correctOutcome: true }
+  );
+  assert.deepEqual(
+    calculateMatchPoints({ outcome: "AWAY", score: { home: 1, away: 1 } }, { home: 1, away: 1 }, { stage: "ROUND_OF_16", winnerScore: { home: 2, away: 1 } }),
+    { points: 3, exact: true, correctOutcome: false }
+  );
 });
 
 test("awards zero points for incorrect or missing match predictions", () => {

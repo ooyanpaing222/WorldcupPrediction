@@ -30,7 +30,8 @@ export async function recalculateMatch(matchId: number) {
             ? { home: prediction.predictedHomeScore, away: prediction.predictedAwayScore }
             : null
         },
-        { home: actual.home!, away: actual.away! }
+        { home: actual.home!, away: actual.away! },
+        { stage: match.stage, winnerScore: match.homeScore !== null && match.awayScore !== null ? { home: match.homeScore, away: match.awayScore } : null }
       );
       await tx.prediction.update({
         where: { id: prediction.id },

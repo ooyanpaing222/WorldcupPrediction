@@ -48,7 +48,8 @@ export function PredictionForm({ match, serverNowIso }: { match: Match; serverNo
   const predictedHomeScore = hasCompleteScore ? Number(home) : null;
   const predictedAwayScore = hasCompleteScore ? Number(away) : null;
   const hasValidScoreNumbers = predictedHomeScore !== null && predictedAwayScore !== null && !Number.isNaN(predictedHomeScore) && !Number.isNaN(predictedAwayScore);
-  const scoreOutcomeMismatch = selectedOutcome && hasValidScoreNumbers && !scoreMatchesOutcome(selectedOutcome, predictedHomeScore, predictedAwayScore);
+  const isKnockout = match.stage !== "GROUP";
+  const scoreOutcomeMismatch = selectedOutcome && hasValidScoreNumbers && !(isKnockout && predictedHomeScore === predictedAwayScore) && !scoreMatchesOutcome(selectedOutcome, predictedHomeScore, predictedAwayScore);
   const canSavePrediction = Boolean(selectedOutcome && hasValidScoreNumbers && !scoreOutcomeMismatch);
   const selectedOutcomeLabel = selectedOutcome ? outcomeLabel(selectedOutcome, match, t) : t("prediction.selectedResult");
 
@@ -67,7 +68,7 @@ export function PredictionForm({ match, serverNowIso }: { match: Match; serverNo
   }
 
   const inputClass = `w-full rounded-2xl border border-slate-200 bg-white p-4 text-center text-2xl font-black transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-100 ${locked ? "opacity-60" : ""}`;
-  const outcomeOptions: MatchOutcome[] = ["HOME", "DRAW", "AWAY"];
+  const outcomeOptions: MatchOutcome[] = isKnockout ? ["HOME", "AWAY"] : ["HOME", "DRAW", "AWAY"];
 
   return (
     <div className={`mt-4 space-y-4 ${locked ? "opacity-60" : ""}`}>
@@ -79,7 +80,7 @@ export function PredictionForm({ match, serverNowIso }: { match: Match; serverNo
           </div>
           {currentOutcome && <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700">{outcomeLabel(currentOutcome, match, t)}</span>}
         </div>
-        <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className={`mt-3 grid gap-2 ${isKnockout ? "grid-cols-2" : "grid-cols-3"}`}>
           {outcomeOptions.map((outcome) => {
             const active = selectedOutcome === outcome;
             return (

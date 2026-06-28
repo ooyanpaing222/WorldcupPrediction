@@ -1,6 +1,6 @@
 import { AppShell } from "@/components/AppShell";
 import { OutrightPicksCard } from "@/components/OutrightPicksCard";
-import { TournamentGroupsTable } from "@/components/TournamentGroupsTable";
+import { TournamentBracketCard } from "@/components/TournamentBracketCard";
 import { getServerTranslator } from "@/lib/serverI18n";
 
 export default async function WinnersPage() {
@@ -8,7 +8,7 @@ export default async function WinnersPage() {
 
   return (
     <AppShell title={t("winners.title")} eyebrow={t("winners.eyebrow")}>
-      <TournamentGroupsTable />
+      <TournamentBracketCard />
       <OutrightPicksCard canEdit />
     </AppShell>
   );
